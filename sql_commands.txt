@@ -1,0 +1,111 @@
+-- 1 task
+select * from users u 
+
+-- 2 task
+select table_name from information_schema.tables where table_schema = 'public' and table_name not like '%backup%'
+
+-- 3 task
+select data_type from information_schema.columns where table_name = 'users' and column_name = 'created_date'
+
+-- 4 task
+-- выполнение посредством pl sql - изменение батчами по 100 шт.
+DO $$
+DECLARE
+  page_size int := 100;
+  min_id integer;
+  max_id integer;
+BEGIN
+  SELECT
+    min(id),
+    max(id)
+  INTO
+    min_id,
+    max_id
+  FROM users;
+  
+  FOR index IN min_id..max_id BY page_size LOOP
+    UPDATE users
+    SET "password" = '$2a$10$lDyjp2iJ2HhWwrDHI5q37O32CIVqENgrztOCxGyCoJqT7TbxzXX93'
+    WHERE id >= index AND id < index+page_size;
+    COMMIT;
+    RAISE NOTICE '%', index;
+  END LOOP;
+END;
+$$;
+
+-- Доказательство
+select distinct("password") from users u 
+
+-- 5 task
+select count(id) , floor((current_date - birthday)/385.25) as age from users u where birthday is not null and id in (select t.id from tester t join users u on t.id = u.id ) group by age order by age
+
+-- 6 task
+select count(id), to_char(upload_time, 'YYYY-MM-YY HH24:00') as day_hour from video v group by  day_hour order by day_hour
+
+-- 7 task
+select * from tester_backup tb where fio = 'Иванов Иван Иванович' and city = 'Ижевск'
+
+-- 8 task
+select * from tester tb where fio = 'Иванов Иван Иванович' and city = 'Ижевск'
+-- в актуале используются индексы не только по ID но и по связке ФИО+Город. Поиск будет быстрее
+-- записей в актуальной (не бекап) таблице больше, это логично, т.к. в в бэкапе мб уже "удалённые" записи в актуале
+
+-- 9 task
+-- ответ выше
+
+-- 10 task
+select * from pg_stat_statements pss 
+
+-- 11 task
+select query as query_with_call_gt_100_max_mean_time from pg_stat_statements pss where calls > 100 order by mean_time desc fetch first 10 rows only
+
+-- найднный
+select * from users
+
+explain select * from users
+
+-- 12 task
+do
+$$
+declare 
+  i record;
+begin
+  for i in 1..2000 loop
+    insert
+	into
+	tester_backup (
+		id,
+		city,
+		country,
+		family_status,
+		fio,
+		income,
+		kids,
+		kids_age,
+		push_notification,
+		education_id,
+		social_status_id,
+		is_side_tester,
+		paypal_email,
+		zipcode)
+	values (
+		(select max(id) + 1 as id from tester_backup tb),
+		(select distinct (city) from tester_backup tb where city is not null order by city limit 1 offset (select floor(random() * count(distinct(city))) from tester_backup tb where city is not null)),
+		(select distinct (country) from tester_backup tb where country is not null order by country limit 1 offset (select floor(random() * count(distinct(country))) from tester_backup tb where country is not null)),
+		null,
+		'Тимуров Тимур Тимурович',
+		(select floor(random() * 100000)),
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null);
+  end loop;
+end;
+$$;
+
+-- доказательство выборки
+select count(distinct(income)) as "Количество отличающихся зарплат" from tester_backup tb where fio = 'Тимуров Тимур Тимурович' 
